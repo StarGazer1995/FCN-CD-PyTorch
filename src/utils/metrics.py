@@ -41,7 +41,7 @@ class AverageMeter:
 # These metrics only for numpy arrays
 class Metric(AverageMeter):
     __name__ = 'Metric'
-    def __init__(self, n_classes=2, mode='accum', reduction='binary'):
+    def __init__(self, n_classes=2, mode='separ', reduction='binary'):
         super().__init__(None)
         self._cm = AverageMeter(partial(metrics.confusion_matrix, labels=np.arange(n_classes)))
         assert mode in ('accum', 'separ')
@@ -66,9 +66,12 @@ class Metric(AverageMeter):
             return self._compute(cm)[1]
 
     def update(self, pred, true, n=1):
-        # Note that this is no thread-safe
         self._cm.update(true.ravel(), pred.ravel())
         if self.mode == 'accum':
+            # Note that accumulation mode is special in that metric.val saves historical information.
+            # Therefore, metric.avg IS USUALLY NOT THE "AVERAGE" VALUE YOU WANT!!! 
+            # Instead, metric.val is the averaged result in the sense of metric.avg in separ mode, 
+            # while metric.avg can be considered as some average of average.
             cm = self._cm.sum
         elif self.mode == 'separ':
             cm = self._cm.val
@@ -94,7 +97,7 @@ class Recall(Metric):
 
 class Accuracy(Metric):
     __name__ = 'OA'
-    def __init__(self, n_classes=2, mode='accum'):
+    def __init__(self, n_classes=2, mode='separ'):
         super().__init__(n_classes=n_classes, mode=mode, reduction='none')
     def _compute(self, cm):
         return np.nan_to_num(np.diag(cm).sum()/cm.sum())
